@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">OnlyKick</string>
+    <string name="home_title">Descubre</string>
+    <string name="home_subtitle">Las mejores zapatillas están aquí</string>
+    <string name="product_image_desc">Imagen de la zapatilla</string>
+    <string name="add_to_cart_button">Añadir al carrito</string>
+</resources>
