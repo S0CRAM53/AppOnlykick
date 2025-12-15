@@ -28,7 +28,8 @@ enum class Screen {
     Settings,
     Cart,
     Checkout,
-    Detail
+    Detail,
+    PurchaseHistory
 }
 
 data class BottomNavItem(
@@ -71,31 +72,31 @@ fun AppNavigation(
             } else {
                 Scaffold(
                     topBar = {
-                        val totalItemsInCart = uiState.cartProducts.values.sum()
-                        AppTopBar(
-                            cartItemCount = totalItemsInCart,
-                            onCartClick = { currentScreen = Screen.Cart }
-                        )
+                        if (currentScreen != Screen.Checkout && currentScreen != Screen.PurchaseHistory) {
+                            val totalItemsInCart = uiState.cartProducts.values.sum()
+                            AppTopBar(
+                                cartItemCount = totalItemsInCart,
+                                onCartClick = { currentScreen = Screen.Cart }
+                            )
+                        }
                     },
                     bottomBar = {
-                        val navItems = listOf(
-                            BottomNavItem("Inicio", Icons.Default.Home, Screen.Home),
-                            BottomNavItem("Perfil", Icons.Default.Person, Screen.Profile),
-                            BottomNavItem("Ajustes", Icons.Default.Settings, Screen.Settings)
-                        )
-                        NavigationBar {
-                            navItems.forEach { navItem ->
-                                val isSelected = if (currentScreen == Screen.Cart) {
-                                    navItem.screen == Screen.Home
-                                } else {
-                                    currentScreen == navItem.screen
+                        if (currentScreen != Screen.Detail && currentScreen != Screen.Checkout && currentScreen != Screen.PurchaseHistory) {
+                            val navItems = listOf(
+                                BottomNavItem("Inicio", Icons.Default.Home, Screen.Home),
+                                BottomNavItem("Perfil", Icons.Default.Person, Screen.Profile),
+                                BottomNavItem("Ajustes", Icons.Default.Settings, Screen.Settings)
+                            )
+                            NavigationBar {
+                                navItems.forEach { navItem ->
+                                    val isSelected = currentScreen == navItem.screen
+                                    NavigationBarItem(
+                                        selected = isSelected,
+                                        onClick = { currentScreen = navItem.screen },
+                                        icon = { Icon(imageVector = navItem.icon, contentDescription = navItem.label) },
+                                        label = { Text(navItem.label) }
+                                    )
                                 }
-                                NavigationBarItem(
-                                    selected = isSelected,
-                                    onClick = { currentScreen = navItem.screen },
-                                    icon = { Icon(imageVector = navItem.icon, contentDescription = navItem.label) },
-                                    label = { Text(navItem.label) }
-                                )
                             }
                         }
                     }
@@ -135,6 +136,7 @@ fun AppNavigation(
                                     onProductClick = { productId -> viewModel.selectProduct(productId) },
                                     onFavoriteClick = { productId -> viewModel.toggleFavorite(productId) },
                                     onAddToCartClick = { productId -> viewModel.addToCart(productId) },
+                                    onPurchaseHistoryClick = { currentScreen = Screen.PurchaseHistory },
                                     modifier = Modifier.padding(innerPadding)
                                 )
                             }
@@ -145,11 +147,16 @@ fun AppNavigation(
                             )
                             Screen.Checkout -> {
                                 CheckoutScreen(
-                                    onContinueShopping = {
-                                        viewModel.clearCart()
-                                        currentScreen = Screen.Home
-                                    },
-                                    modifier = Modifier.padding(innerPadding)
+                                    viewModel = viewModel,
+                                    uiState = uiState,
+                                    onPurchaseSuccess = { currentScreen = Screen.PurchaseHistory }
+                                )
+                            }
+                            Screen.PurchaseHistory -> {
+                                PurchaseHistoryScreen(
+                                    viewModel = viewModel,
+                                    uiState = uiState,
+                                    onBackClick = { currentScreen = Screen.Profile } // Acción de volver
                                 )
                             }
                             else -> {}

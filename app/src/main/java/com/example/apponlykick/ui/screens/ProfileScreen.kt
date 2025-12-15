@@ -31,6 +31,7 @@ fun ProfileScreen(
     onProductClick: (Int) -> Unit,
     onFavoriteClick: (Int) -> Unit,
     onAddToCartClick: (Int) -> Unit,
+    onPurchaseHistoryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -77,8 +78,14 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onLogoutClick) {
-                        Text("CERRAR SESIÓN")
+                    // 2. Botones de acción del perfil
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onPurchaseHistoryClick) {
+                            Text("MIS COMPRAS")
+                        }
+                        Button(onClick = onLogoutClick) {
+                            Text("CERRAR SESIÓN")
+                        }
                     }
                 }
             }

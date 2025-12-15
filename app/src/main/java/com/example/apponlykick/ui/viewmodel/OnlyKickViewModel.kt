@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.apponlykick.data.model.Product
+import com.example.apponlykick.data.model.SaleResponse
 import com.example.apponlykick.data.remote.ApiClient
 import com.example.apponlykick.repository.AuthRepository
 import com.example.apponlykick.repository.ProductRepository
+import com.example.apponlykick.repository.SaleRepository
 import com.example.apponlykick.repository.SettingsRepository
 import com.example.apponlykick.ui.screens.CartItemState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,7 +51,11 @@ data class OnlyKickUiState(
     val pass: String = "",
     val nameError: String? = null,
     val emailError: String? = null,
-    val passError: String? = null
+    val passError: String? = null,
+
+    val salesHistory: List<SaleResponse> = emptyList(),
+    val isCheckingOut: Boolean = false,
+    val checkoutResult: Boolean? = null
 ) {
     val cartItems: List<CartItemState> by lazy {
         cartProducts.mapNotNull { (productId, quantity) ->
@@ -73,6 +79,7 @@ class OnlyKickViewModel(private val settingsRepository: SettingsRepository) : Vi
 
     private val authRepository = AuthRepository()
     private val productRepository = ProductRepository(ApiClient.service)
+    private val saleRepository = SaleRepository()
 
     init {
         viewModelScope.launch {
@@ -95,6 +102,70 @@ class OnlyKickViewModel(private val settingsRepository: SettingsRepository) : Vi
                 _uiState.update { it.copy(isDarkModeEnabled = isEnabled) }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun confirmCheckout() {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            val user = currentState.currentUser
+            val cartItems = currentState.cartItems
+
+            if (user == null || cartItems.isEmpty()) {
+                _uiState.update { it.copy(checkoutResult = false, errorMessage = "Usuario no autenticado o carrito vacío") }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isCheckingOut = true, errorMessage = null) }
+
+            try {
+                val result = saleRepository.createSale(user, cartItems, currentState.totalCartPrice)
+                if (result != null) {
+                    _uiState.update {
+                        it.copy(
+                            isCheckingOut = false,
+                            checkoutResult = true,
+                            cartProducts = emptyMap()
+                        )
+                    }
+                    fetchSalesHistory()
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isCheckingOut = false,
+                            checkoutResult = false,
+                            errorMessage = "Error al procesar la compra."
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isCheckingOut = false,
+                        checkoutResult = false,
+                        errorMessage = "Error: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun fetchSalesHistory() {
+        viewModelScope.launch {
+            val user = _uiState.value.currentUser
+            if (user != null) {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+                try {
+                    val history = saleRepository.getSalesHistory(user.id.toInt())
+                    _uiState.update { it.copy(salesHistory = history ?: emptyList(), isLoading = false) }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = "Error al cargar el historial: ${e.message}") }
+                }
+            }
+        }
+    }
+
+    fun resetCheckoutResult() {
+        _uiState.update { it.copy(checkoutResult = null) }
     }
 
     fun onNameChange(name: String) { _uiState.update { it.copy(name = name, nameError = null) } }
@@ -159,6 +230,7 @@ class OnlyKickViewModel(private val settingsRepository: SettingsRepository) : Vi
 
                 if (user != null) {
                     _uiState.update { it.copy(currentUser = user, isLoading = false) }
+                    fetchSalesHistory() // Cargar historial al iniciar sesión
                 } else {
                     _uiState.update {
                         it.copy(
@@ -182,7 +254,8 @@ class OnlyKickViewModel(private val settingsRepository: SettingsRepository) : Vi
                 currentUser = null,
                 cartProducts = emptyMap(),
                 favoriteProducts = emptySet(),
-                profileImageUri = null
+                profileImageUri = null,
+                salesHistory = emptyList()
             )
         }
     }

@@ -8,14 +8,12 @@ class AuthRepository {
     private val api = ApiClient.service
 
     suspend fun registerUser(name: String, email: String, pass: String): User? {
+        // ... (el código de registro déjalo igual, ese no cambiamos)
         return try {
             val request = UserDto(name = name, email = email, pass = pass)
-
             val response = api.register(request)
-
             if (response.isSuccessful && response.body() != null) {
                 val backendUser = response.body()!!
-
                 User(
                     id = backendUser.id?.toString() ?: "0",
                     email = backendUser.email,
@@ -36,12 +34,15 @@ class AuthRepository {
 
             val response = api.login(request)
 
+            // CAMBIO AQUÍ: Accedemos a response.body()!!.user
             if (response.isSuccessful && response.body() != null) {
-                val backendUser = response.body()!!
+                val loginResponse = response.body()!!
+                val backendUser = loginResponse.user // <-- Aquí extraemos al usuario
 
                 User(
                     id = backendUser.id?.toString() ?: "0",
                     email = backendUser.email,
+                    // Si el nombre viene nulo, ponemos un valor por defecto para evitar otro crash
                     name = backendUser.name ?: "Usuario"
                 )
             } else {
